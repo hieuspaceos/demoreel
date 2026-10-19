@@ -182,8 +182,28 @@ let demo = Demo(scenes: [
                                          y: f < 500 ? panel.maxY - 470 : panel.maxY - 526),
                         clicking: (f >= 465 && f < 475) || (f >= 505 && f < 515))
     },
-    // 561-700: outro
-    Scene(561...700, caption: "flipswitch — free, native, 15 toggles") { ctx, t, f in
+    // 561-820: sweep — Dark Mode on/off, Mic mute, Stage Mgr, Hidden Files
+    Scene(561...820, caption: "…and 11 more") { ctx, t, f in
+        docWindow(ctx, dark: f < 640)
+        fakeDock(ctx, hidden: true, t: 1)
+        var on: Set<Int> = [8, 4]
+        // cursor sweeps across tiles flipping each: Hidden(1) Dark(2) Mic(5) Stage(3)
+        let seq: [(Int, Int)] = [(575,1), (640,2), (705,5), (770,3)]
+        var hov = -1
+        for (ff, idx) in seq {
+            if f >= ff && f < ff + 55 { hov = idx }
+            if f >= ff + 12 { if idx != 2 { on.insert(idx) } } // dark flips OFF->light visually, keep lit
+        }
+        panelView(ctx, on: on, hover: hov, t: 1)
+        if hov >= 0 {
+            let col = hov % 2, row = hov / 2
+            let cx = panel.minX + 14 + CGFloat(col) * 140 + 65
+            let cy = panel.maxY - 56 - CGFloat(row) * 58 - 29
+            DemoReel.cursor(ctx, at: CGPoint(x: cx - 20, y: cy), clicking: false)
+        }
+    },
+    // 821-960: outro
+    Scene(821...960, caption: "flipswitch — free, native, 15 toggles") { ctx, t, f in
         docWindow(ctx, dark: false)
         fakeDock(ctx, hidden: true, t: 1)
         let fade = min(1, max(0, CGFloat(f - 570) / 20))
