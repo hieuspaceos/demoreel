@@ -67,18 +67,29 @@ public struct CursorTrack {
 
 public enum DemoReel {
 
+    /// Renders `last+1` frames concurrently — draw closures are per-frame and
+    /// deterministic by contract (same frame → same pixels), so parallelizing
+    /// is safe. PNG writes happen inside each worker autoreleasepool.
     public static func run(demo: Demo, outdir: String) {
         try? FileManager.default.createDirectory(atPath: outdir,
                                                  withIntermediateDirectories: true)
         let last = demo.scenes.map(\.range.upperBound).max() ?? 0
-        let base = demo.backdrop == nil ? desktopImage(size: demo.size) : desktopImage(size: demo.size)
-        for f in 0...last {
+        let base = desktopImage(size: demo.size)
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let lock = NSLock()
+        var written = 0
+        DispatchQueue.concurrentPerform(iterations: last + 1) { f in
             autoreleasepool {
                 render(demo: demo, frame: f, base: base, outdir: outdir)
             }
-            if f % 90 == 0 { FileHandle.standardOutput.write("frame \(f)/\(last)\n".data(using: .utf8)!) }
+            lock.lock(); written += 1
+            if written % 120 == 0 || written == last + 1 {
+                FileHandle.standardOutput.write("frame \(written)/\(last + 1)\n".data(using: .utf8)!)
+            }
+            lock.unlock()
         }
-        print("done -> \(outdir)  (\(last + 1) frames @ \(demo.fps)fps = \(String(format: "%.1f", Double(last) / Double(demo.fps)))s)")
+        let dt = CFAbsoluteTimeGetCurrent() - t0
+        print("done -> \(outdir)  (\(last + 1) frames @ \(demo.fps)fps = \(String(format: "%.1f", Double(last) / Double(demo.fps)))s video, rendered in \(String(format: "%.1f", dt))s)")
     }
 
     private static func render(demo: Demo, frame f: Int, base: CGImage?, outdir: String) {
